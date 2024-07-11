@@ -1,4 +1,4 @@
-# Summary
+### Summary
 This plugin calculates the “Yarding Distance,” which represents the average distance from a polygon to a point.<br>
 Input : Polygon (layer), Point (click on the map) and Dot spacing<br>
 Steps : Create dots over the polygon. Measure the lengths from the dots to the point. Calculate the average of these lengths.<br>
