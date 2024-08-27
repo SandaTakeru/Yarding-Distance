@@ -11,3 +11,15 @@ The distance calculation is based on the project coordinate system. Euclidean di
 手順: ポリゴン上に点群を作成します。点群から集材点までの長さを測定します。これらの長さの平均を計算します。<br>
 出力: 計算されたレイヤー (集材点、伐区内点群、集材グラフ、平均集材距離ラベル)<br>
 距離の計算はプロジェクト座標系に基づいており、ユークリッド距離またはマンハッタン距離を出力できます。<br>
+
+# How to Use
+## Starting method
+![001](./001.png)<br>
+Launch Yarding Distance Plugin from the Processing Tools panel.<br>
+## Setting method
+![002](./002.png)<br>
+Set parameters.<br>
+## Generated layers
+![003](./003.png)<br>
+## Attribute values
+![004](./004.png)<br>
