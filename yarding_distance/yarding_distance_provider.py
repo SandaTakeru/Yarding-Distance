@@ -12,35 +12,21 @@ from pathlib import Path
 
 from PyQt5.QtGui import QIcon
 from qgis.core import QgsProcessingProvider
-from .yarding_distance_algorithm import YardingDistanceSingleClickManhattan, YardingDistanceSingleClickEuclid, YardingDistancePointLayerManhattan, YardingDistancePointLayerEuclid
+from .yarding_distance_algorithm import create_algorithms
 
 
 class YardingDistanceProvider(QgsProcessingProvider):
 
     def __init__(self):
-        """
-        Default constructor.
-        """
         QgsProcessingProvider.__init__(self)
 
     def unload(self):
-        """
-        Unloads the provider. Any tear-down steps required by the provider
-        should be implemented here.
-        """
         pass
 
     def loadAlgorithms(self):
-        """
-        Loads all algorithms belonging to this provider.
-        """
-        self.addAlgorithm(YardingDistanceSingleClickManhattan())
-        self.addAlgorithm(YardingDistanceSingleClickEuclid())
-        self.addAlgorithm(YardingDistancePointLayerManhattan())
-        self.addAlgorithm(YardingDistancePointLayerEuclid())
-        # add additional algorithms here
-        # self.addAlgorithm(MyOtherAlgorithm())
-
+        for alg in create_algorithms():
+            self.addAlgorithm(alg)
+    
     def id(self):
         return 'Yarding Distance'
 
