@@ -10,7 +10,7 @@ __revision__ = '$Format:%H$'
 
 from pathlib import Path
 
-from PyQt5.QtGui import QIcon
+from qgis.PyQt.QtGui import QIcon
 from qgis.core import QgsProcessingProvider
 from .yarding_distance_algorithm import create_algorithms
 

@@ -4,11 +4,11 @@
 
 [general]
 name=Yarding Distance
-qgisMinimumVersion=3.0
+qgisMinimumVersion=4.0
 description=This plugin calculates the "Yarding Distance" (average distance from polygons to yarding points) using either Euclidean or Manhattan distance. It outputs log points, yarding points, connecting lines, and polygons with mean yarding distance attributes. All calculations are performed in the CRS of the input polygon layer. 日本語説明: ポリゴン（伐区）から土場（ポイント）までの平均集材距離を計算します。ユークリッド距離またはマンハッタン距離を選択可能です。出力は伐木点、土場、集材線、平均集材距離付きポリゴンです。
-version=0.20250624
+version=20260614
 author=Sanda Takeru
-email=takeru_sanda999@maff.go.jp
+email=location.lab@sanda-takeru.com
 
 about=Yarding Distance plugin calculates the average distance from each log point (generated within a polygon) to the nearest yarding point (土場), using either Euclidean (直線距離) or Manhattan (碁盤目状の道に沿った距離) distance. The plugin generates four output layers: (1) log points within polygons, (2) yarding points with mean yarding distance, (3) lines connecting each log point to its nearest yarding point, and (4) polygons with mean yarding distance as an attribute. All distance calculations use the CRS of the input polygon layer. <br><br>このプラグインは、伐区（ポリゴン）内に伐木点を自動生成し、各伐木点から最も近い土場（ポイント）までの距離を計算します。距離はユークリッド距離（直線）またはマンハッタン距離（縦横の道に沿った距離）から選択できます。出力は、伐木点、土場ごとの平均集材距離、伐木点と土場を結ぶ線、平均集材距離付きポリゴンの4レイヤです。計算は入力ポリゴンレイヤの座標系で行われます。
 
@@ -19,8 +19,7 @@ repository=https://github.com/SandaTakeru/Yarding-Distance.git
 # Recommended items:
 
 hasProcessingProvider=yes
-# Uncomment the following line and add your changelog:
-# changelog=Manhattan Distance from point layer is ready.
+changelog=20260614 QGIS 4 / Qt6 対応（スコープ付きenum化）。土場出力レイヤのCRS不整合を修正。平均距離計算の処理速度を改善。土場レイヤが空の場合のエラー処理と進捗・キャンセル対応を追加。出力レイヤの並び順を制御（上から 土場→伐木点→集材線→ポリゴン）。
 
 # Tags are comma separated with spaces allowed
 tags=wood, woods, forestry, path, yarding, skidding, average, distance, python

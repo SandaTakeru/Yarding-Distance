@@ -14,7 +14,7 @@ from qgis.core import (
     QgsFeature,
     QgsGeometry,
 )
-from qgis.PyQt.QtCore import QVariant
+from qgis.PyQt.QtCore import QMetaType
 import random
 
 HelpMessage = (
@@ -23,7 +23,7 @@ HelpMessage = (
     'In summary:\r\n'
     'Euclidean Distance is the straight-line distance.\r\n'
     'Manhattan Distance is the distance you travel along the grid streets. (This plugin follows North-South-East-West orientation.)\r\n'
-    'Note: All distance calculations are performed in the CRS (coordinate reference system) of the input polygon layer.r\n'
+    'Note: All distance calculations are performed in the CRS (coordinate reference system) of the input polygon layer.\r\n'
     '\r\n'
     'ユークリッド距離: 2点間を直線で結んだ最短距離です。まっすぐ歩く、または空を飛ぶイメージです。\r\n'
     'マンハッタン距離: 碁盤目状の街を歩くように、縦横の道だけを使って移動する距離です。建物を突っ切ることはできません。\r\n'
@@ -75,6 +75,11 @@ class YardingDistanceBase:
     def get_dist_method_str(self, dist_method):
         return 'Euclidean' if dist_method == 0 else 'Manhattan'
 
+    def set_sort_key(self, context, dest_id, sort_key):
+        # レイヤパネルでの並び順を制御（値が大きいほど上に表示される）
+        if context.willLoadLayerOnCompletion(dest_id):
+            context.layerToLoadOnCompletionDetails(dest_id).layerSortKey = sort_key
+
     def reproject_geom(self, geom, transform):
         g = QgsGeometry(geom)
         g.transform(transform)
@@ -95,34 +100,34 @@ class YardingDistanceBase:
     def log_point_fields(self):
         from qgis.core import QgsFields, QgsField
         fields = QgsFields()
-        fields.append(QgsField('polygon_id', QVariant.Int))
-        fields.append(QgsField('nearest_yarding_id', QVariant.Int))
-        fields.append(QgsField('min_dist', QVariant.Double))
-        fields.append(QgsField('dist_method', QVariant.String))
+        fields.append(QgsField('polygon_id', QMetaType.Type.Int))
+        fields.append(QgsField('nearest_yarding_id', QMetaType.Type.Int))
+        fields.append(QgsField('min_dist', QMetaType.Type.Double))
+        fields.append(QgsField('dist_method', QMetaType.Type.QString))
         return fields
 
     def line_fields(self):
         from qgis.core import QgsFields, QgsField
         fields = QgsFields()
-        fields.append(QgsField('log_id', QVariant.Int))
-        fields.append(QgsField('yarding_id', QVariant.Int))
-        fields.append(QgsField('dist', QVariant.Double))
-        fields.append(QgsField('dist_method', QVariant.String))
+        fields.append(QgsField('log_id', QMetaType.Type.Int))
+        fields.append(QgsField('yarding_id', QMetaType.Type.Int))
+        fields.append(QgsField('dist', QMetaType.Type.Double))
+        fields.append(QgsField('dist_method', QMetaType.Type.QString))
         return fields
 
     def polygon_fields(self, polygon_layer):
         from qgis.core import QgsField
         fields = polygon_layer.fields()
-        fields.append(QgsField('mean_yarding_dist', QVariant.Double))
-        fields.append(QgsField('dist_method', QVariant.String))
+        fields.append(QgsField('mean_yarding_dist', QMetaType.Type.Double))
+        fields.append(QgsField('dist_method', QMetaType.Type.QString))
         return fields
 
     def yarding_fields(self, point_layer):
         from qgis.core import QgsField
         fields = point_layer.fields()
-        fields.append(QgsField('yarding_id', QVariant.Int))
-        fields.append(QgsField('mean_yarding_dist', QVariant.Double))
-        fields.append(QgsField('dist_method', QVariant.String))
+        fields.append(QgsField('yarding_id', QMetaType.Type.Int))
+        fields.append(QgsField('mean_yarding_dist', QMetaType.Type.Double))
+        fields.append(QgsField('dist_method', QMetaType.Type.QString))
         return fields
 
 class YardingDistanceAlgorithm(QgsProcessingAlgorithm, YardingDistanceBase):
@@ -138,40 +143,40 @@ class YardingDistanceAlgorithm(QgsProcessingAlgorithm, YardingDistanceBase):
 
     def initAlgorithm(self, config=None):
         self.addParameter(QgsProcessingParameterFeatureSource(
-            self.INPUT_POLYGON, 'Harvest Area Polygon 伐区', [QgsProcessing.TypeVectorPolygon]))
+            self.INPUT_POLYGON, 'Harvest Area Polygon 伐区', [QgsProcessing.SourceType.TypeVectorPolygon]))
 
         self.addParameter(QgsProcessingParameterFeatureSource(
-            self.INPUT_POINTS, 'Yarding Point 土場', [QgsProcessing.TypeVectorPoint]))
+            self.INPUT_POINTS, 'Yarding Point 土場', [QgsProcessing.SourceType.TypeVectorPoint]))
 
         # Distance Calculation Method (advanced)
         p = QgsProcessingParameterEnum(
             self.DIST_METHOD, 'Distance Calculation Method 距離計算方法', options=['Euclidean', 'Manhattan'], defaultValue=0)
-        p.setFlags(p.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        p.setFlags(p.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(p)
 
         # Grid Spacing (advanced)
         p = QgsProcessingParameterNumber(
-            self.GRID_SPACING, 'Grid Spacing (meters) 点群間隔', type=QgsProcessingParameterNumber.Double,
+            self.GRID_SPACING, 'Grid Spacing (meters) 点群間隔', type=QgsProcessingParameterNumber.Type.Double,
             defaultValue=25, minValue=0.0001
         )
-        p.setFlags(p.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        p.setFlags(p.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(p)
 
         # Log Point Distribution (advanced)
         p = QgsProcessingParameterEnum(
             self.POINT_DISTRIBUTION, 'Log Point Distribution 点群の配置', options=['Grid', 'Random'], defaultValue=0
         )
-        p.setFlags(p.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        p.setFlags(p.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(p)
 
         self.addParameter(QgsProcessingParameterFeatureSink(
-            self.OUTPUT_YARDING_POINTS, 'Mean Yarding Distance (Yarding Point)', QgsProcessing.TypeVectorPoint))
+            self.OUTPUT_YARDING_POINTS, 'Mean Yarding Distance (Yarding Point)', QgsProcessing.SourceType.TypeVectorPoint))
         self.addParameter(QgsProcessingParameterFeatureSink(
-            self.OUTPUT_POLYGON, 'Mean Yarding Distance (Harvest Area)', QgsProcessing.TypeVectorPolygon))
+            self.OUTPUT_POLYGON, 'Mean Yarding Distance (Harvest Area)', QgsProcessing.SourceType.TypeVectorPolygon))
         self.addParameter(QgsProcessingParameterFeatureSink(
-            self.OUTPUT_LINES, 'Log-Yarding Line', QgsProcessing.TypeVectorLine))
+            self.OUTPUT_LINES, 'Log-Yarding Line', QgsProcessing.SourceType.TypeVectorLine))
         self.addParameter(QgsProcessingParameterFeatureSink(
-            self.OUTPUT_LOG_POINTS, 'Log Points', QgsProcessing.TypeVectorPoint))
+            self.OUTPUT_LOG_POINTS, 'Log Points', QgsProcessing.SourceType.TypeVectorPoint))
 
     def processAlgorithm(self, parameters, context, feedback):
         polygon_layer = self.parameterAsSource(parameters, self.INPUT_POLYGON, context)
@@ -198,12 +203,19 @@ class YardingDistanceAlgorithm(QgsProcessingAlgorithm, YardingDistanceBase):
         polygon_features = []
 
         yarding_feats = list(point_layer.getFeatures())
-        for polygon_feat in polygon_layer.getFeatures():
+        if not yarding_feats:
+            raise Exception('土場（ポイント）レイヤに地物がありません。The yarding point layer is empty.')
+
+        total = polygon_layer.featureCount()
+        for current, polygon_feat in enumerate(polygon_layer.getFeatures()):
+            if feedback.isCanceled():
+                break
             geom = polygon_feat.geometry()
             polygon_id = polygon_feat.id()
             points = self.generate_points(geom, spacing, point_distribution)
 
             log_id = 0
+            dists = []
             for pt in points:
                 min_dist = None
                 nearest_yarding_id = None
@@ -229,11 +241,12 @@ class YardingDistanceAlgorithm(QgsProcessingAlgorithm, YardingDistanceBase):
                 line_feat.setAttributes([log_id, nearest_yarding_id, min_dist, dist_method_str])
                 line_features.append(line_feat)
                 log_id += 1
+                dists.append(min_dist)
                 if nearest_yarding_id not in yarding_stats:
                     yarding_stats[nearest_yarding_id] = []
                 yarding_stats[nearest_yarding_id].append(min_dist)
-            if points:
-                mean_dist = sum([f['min_dist'] for f in log_point_features if f['polygon_id'] == polygon_id]) / len(points)
+            if dists:
+                mean_dist = sum(dists) / len(dists)
             else:
                 mean_dist = None
             poly_feat = QgsFeature(polygon_fields)
@@ -243,6 +256,8 @@ class YardingDistanceAlgorithm(QgsProcessingAlgorithm, YardingDistanceBase):
             attrs.append(dist_method_str)
             poly_feat.setAttributes(attrs)
             polygon_features.append(poly_feat)
+            if total:
+                feedback.setProgress(int((current + 1) / total * 100))
 
         yarding_features = []
         for yarding_feat in yarding_feats:
@@ -262,21 +277,27 @@ class YardingDistanceAlgorithm(QgsProcessingAlgorithm, YardingDistanceBase):
             yarding_features.append(y_feat)
 
         (polygon_sink, polygon_id) = self.parameterAsSink(parameters, self.OUTPUT_POLYGON, context,
-                                                          polygon_fields, QgsWkbTypes.Polygon, polygon_layer.sourceCrs())
+                                                          polygon_fields, QgsWkbTypes.Type.Polygon, polygon_layer.sourceCrs())
         for f in polygon_features:
-            polygon_sink.addFeature(f, QgsFeatureSink.FastInsert)
+            polygon_sink.addFeature(f, QgsFeatureSink.Flag.FastInsert)
         (log_points_sink, log_points_id) = self.parameterAsSink(parameters, self.OUTPUT_LOG_POINTS, context,
-                                                                log_point_fields, QgsWkbTypes.Point, polygon_layer.sourceCrs())
+                                                                log_point_fields, QgsWkbTypes.Type.Point, polygon_layer.sourceCrs())
         for f in log_point_features:
-            log_points_sink.addFeature(f, QgsFeatureSink.FastInsert)
+            log_points_sink.addFeature(f, QgsFeatureSink.Flag.FastInsert)
         (lines_sink, lines_id) = self.parameterAsSink(parameters, self.OUTPUT_LINES, context,
-                                                      line_fields, QgsWkbTypes.LineString, polygon_layer.sourceCrs())
+                                                      line_fields, QgsWkbTypes.Type.LineString, polygon_layer.sourceCrs())
         for f in line_features:
-            lines_sink.addFeature(f, QgsFeatureSink.FastInsert)
+            lines_sink.addFeature(f, QgsFeatureSink.Flag.FastInsert)
         (yarding_sink, yarding_id) = self.parameterAsSink(parameters, self.OUTPUT_YARDING_POINTS, context,
-                                                          yarding_fields, QgsWkbTypes.Point, point_layer.sourceCrs())
+                                                          yarding_fields, QgsWkbTypes.Type.Point, polygon_layer.sourceCrs())
         for f in yarding_features:
-            yarding_sink.addFeature(f, QgsFeatureSink.FastInsert)
+            yarding_sink.addFeature(f, QgsFeatureSink.Flag.FastInsert)
+
+        # レイヤパネル並び順：上から 土場→伐木点→集材線→ポリゴン
+        self.set_sort_key(context, yarding_id, 4)
+        self.set_sort_key(context, log_points_id, 3)
+        self.set_sort_key(context, lines_id, 2)
+        self.set_sort_key(context, polygon_id, 1)
 
         return {
             self.OUTPUT_LOG_POINTS: log_points_id,
@@ -309,7 +330,7 @@ class YardingDistanceSinglePointAlgorithm(QgsProcessingAlgorithm, YardingDistanc
     OUTPUT_YARDING_POINTS = 'OUTPUT_YARDING_POINTS'
     def initAlgorithm(self, config=None):
         self.addParameter(QgsProcessingParameterFeatureSource(
-            self.INPUT_POLYGON, 'Harvest Area Polygon 伐区', [QgsProcessing.TypeVectorPolygon]))
+            self.INPUT_POLYGON, 'Harvest Area Polygon 伐区', [QgsProcessing.SourceType.TypeVectorPolygon]))
 
         self.addParameter(QgsProcessingParameterPoint(
             self.INPUT_POINT, 'Yarding Point (Click on Map) 土場をクリック', defaultValue=None))
@@ -317,32 +338,32 @@ class YardingDistanceSinglePointAlgorithm(QgsProcessingAlgorithm, YardingDistanc
         # Distance Calculation Method (advanced)
         p = QgsProcessingParameterEnum(
             self.DIST_METHOD, 'Distance Calculation Method 距離計算方法', options=['Euclidean', 'Manhattan'], defaultValue=0)
-        p.setFlags(p.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        p.setFlags(p.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(p)
 
         # Grid Spacing (advanced)
         p = QgsProcessingParameterNumber(
-            self.GRID_SPACING, 'Grid Spacing (meters) 点群間隔', type=QgsProcessingParameterNumber.Double,
+            self.GRID_SPACING, 'Grid Spacing (meters) 点群間隔', type=QgsProcessingParameterNumber.Type.Double,
             defaultValue=25, minValue=0.0001
         )
-        p.setFlags(p.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        p.setFlags(p.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(p)
 
         # Log Point Distribution (advanced)
         p = QgsProcessingParameterEnum(
             self.POINT_DISTRIBUTION, 'Log Point Distribution 点群の配置', options=['Grid', 'Random'], defaultValue=0
         )
-        p.setFlags(p.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        p.setFlags(p.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(p)
 
         self.addParameter(QgsProcessingParameterFeatureSink(
-            self.OUTPUT_YARDING_POINTS, 'Mean Yarding Distance (Yarding Point)', QgsProcessing.TypeVectorPoint))
+            self.OUTPUT_YARDING_POINTS, 'Mean Yarding Distance (Yarding Point)', QgsProcessing.SourceType.TypeVectorPoint))
         self.addParameter(QgsProcessingParameterFeatureSink(
-            self.OUTPUT_POLYGON, 'Mean Yarding Distance (Harvest Area)', QgsProcessing.TypeVectorPolygon))
+            self.OUTPUT_POLYGON, 'Mean Yarding Distance (Harvest Area)', QgsProcessing.SourceType.TypeVectorPolygon))
         self.addParameter(QgsProcessingParameterFeatureSink(
-            self.OUTPUT_LINES, 'Log-Yarding Line', QgsProcessing.TypeVectorLine))
+            self.OUTPUT_LINES, 'Log-Yarding Line', QgsProcessing.SourceType.TypeVectorLine))
         self.addParameter(QgsProcessingParameterFeatureSink(
-            self.OUTPUT_LOG_POINTS, 'Log Points', QgsProcessing.TypeVectorPoint))
+            self.OUTPUT_LOG_POINTS, 'Log Points', QgsProcessing.SourceType.TypeVectorPoint))
 
     def processAlgorithm(self, parameters, context, feedback):
         from qgis.core import QgsFields, QgsField, QgsFeature, QgsGeometry
@@ -366,20 +387,20 @@ class YardingDistanceSinglePointAlgorithm(QgsProcessingAlgorithm, YardingDistanc
             yarding_point = transform.transform(yarding_point)
 
         log_point_fields = QgsFields()
-        log_point_fields.append(QgsField('polygon_id', QVariant.Int))
-        log_point_fields.append(QgsField('min_dist', QVariant.Double))
-        log_point_fields.append(QgsField('dist_method', QVariant.String))
+        log_point_fields.append(QgsField('polygon_id', QMetaType.Type.Int))
+        log_point_fields.append(QgsField('min_dist', QMetaType.Type.Double))
+        log_point_fields.append(QgsField('dist_method', QMetaType.Type.QString))
 
         line_fields = QgsFields()
-        line_fields.append(QgsField('log_id', QVariant.Int))
-        line_fields.append(QgsField('dist', QVariant.Double))
-        line_fields.append(QgsField('dist_method', QVariant.String))
+        line_fields.append(QgsField('log_id', QMetaType.Type.Int))
+        line_fields.append(QgsField('dist', QMetaType.Type.Double))
+        line_fields.append(QgsField('dist_method', QMetaType.Type.QString))
 
         polygon_fields = self.polygon_fields(polygon_layer)
         yarding_fields = QgsFields()
-        yarding_fields.append(QgsField('yarding_id', QVariant.Int))
-        yarding_fields.append(QgsField('mean_yarding_dist', QVariant.Double))
-        yarding_fields.append(QgsField('dist_method', QVariant.String))
+        yarding_fields.append(QgsField('yarding_id', QMetaType.Type.Int))
+        yarding_fields.append(QgsField('mean_yarding_dist', QMetaType.Type.Double))
+        yarding_fields.append(QgsField('dist_method', QMetaType.Type.QString))
 
         log_point_features = []
         line_features = []
@@ -387,7 +408,10 @@ class YardingDistanceSinglePointAlgorithm(QgsProcessingAlgorithm, YardingDistanc
         yarding_features = []
         all_dists = []
 
-        for polygon_feat in polygon_layer.getFeatures():
+        total = polygon_layer.featureCount()
+        for current, polygon_feat in enumerate(polygon_layer.getFeatures()):
+            if feedback.isCanceled():
+                break
             geom = polygon_feat.geometry()
             polygon_id = polygon_feat.id()
             points = self.generate_points(geom, spacing, point_distribution)
@@ -421,6 +445,8 @@ class YardingDistanceSinglePointAlgorithm(QgsProcessingAlgorithm, YardingDistanc
             attrs.append(dist_method_str)
             poly_feat.setAttributes(attrs)
             polygon_features.append(poly_feat)
+            if total:
+                feedback.setProgress(int((current + 1) / total * 100))
 
         mean_yarding_dist = sum(all_dists) / len(all_dists) if all_dists else None
         yarding_feat = QgsFeature(yarding_fields)
@@ -429,21 +455,27 @@ class YardingDistanceSinglePointAlgorithm(QgsProcessingAlgorithm, YardingDistanc
         yarding_features.append(yarding_feat)
 
         (polygon_sink, polygon_id) = self.parameterAsSink(parameters, self.OUTPUT_POLYGON, context,
-                                                          polygon_fields, QgsWkbTypes.Polygon, polygon_layer.sourceCrs())
+                                                          polygon_fields, QgsWkbTypes.Type.Polygon, polygon_layer.sourceCrs())
         for f in polygon_features:
-            polygon_sink.addFeature(f, QgsFeatureSink.FastInsert)
+            polygon_sink.addFeature(f, QgsFeatureSink.Flag.FastInsert)
         (log_points_sink, log_points_id) = self.parameterAsSink(parameters, self.OUTPUT_LOG_POINTS, context,
-                                                                log_point_fields, QgsWkbTypes.Point, polygon_layer.sourceCrs())
+                                                                log_point_fields, QgsWkbTypes.Type.Point, polygon_layer.sourceCrs())
         for f in log_point_features:
-            log_points_sink.addFeature(f, QgsFeatureSink.FastInsert)
+            log_points_sink.addFeature(f, QgsFeatureSink.Flag.FastInsert)
         (lines_sink, lines_id) = self.parameterAsSink(parameters, self.OUTPUT_LINES, context,
-                                                      line_fields, QgsWkbTypes.LineString, polygon_layer.sourceCrs())
+                                                      line_fields, QgsWkbTypes.Type.LineString, polygon_layer.sourceCrs())
         for f in line_features:
-            lines_sink.addFeature(f, QgsFeatureSink.FastInsert)
+            lines_sink.addFeature(f, QgsFeatureSink.Flag.FastInsert)
         (yarding_sink, yarding_id) = self.parameterAsSink(parameters, self.OUTPUT_YARDING_POINTS, context,
-                                                          yarding_fields, QgsWkbTypes.Point, polygon_layer.sourceCrs())
+                                                          yarding_fields, QgsWkbTypes.Type.Point, polygon_layer.sourceCrs())
         for f in yarding_features:
-            yarding_sink.addFeature(f, QgsFeatureSink.FastInsert)
+            yarding_sink.addFeature(f, QgsFeatureSink.Flag.FastInsert)
+
+        # レイヤパネル並び順：上から 土場→伐木点→集材線→ポリゴン
+        self.set_sort_key(context, yarding_id, 4)
+        self.set_sort_key(context, log_points_id, 3)
+        self.set_sort_key(context, lines_id, 2)
+        self.set_sort_key(context, polygon_id, 1)
 
         return {
             self.OUTPUT_LOG_POINTS: log_points_id,
